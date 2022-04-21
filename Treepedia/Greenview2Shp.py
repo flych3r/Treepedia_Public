@@ -1,6 +1,6 @@
 # This script is used to convert the green view index results saved in txt to Shapefile
 # considering the facts many people are more comfortable with shapefile and GIS
-# Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, MIT 
+# Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, MIT
 
 
 def Read_GSVinfo_Text(GVI_Res_txt):
@@ -8,13 +8,13 @@ def Read_GSVinfo_Text(GVI_Res_txt):
     This function is used to read the information in text files or folders
     the fundtion will remove the duplicate sites and only select those sites
     have GSV info in green month.
-    
+
     Return:
         panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
-    
+
     Pamameters:
         GVI_Res_txt: the file name of the GSV information txt file
-    '''   
+    '''
 
     import os,os.path
 
@@ -24,14 +24,14 @@ def Read_GSVinfo_Text(GVI_Res_txt):
     panoLonLst = []
     panoLatLst = []
     greenViewLst = []
-    
+
     # read the green view index result txt files
     lines = open(GVI_Res_txt,"r")
     for line in lines:
         # check the completeness of each line, each line include attribute of, panoDate, lon, lat,greenView
         if "panoDate" not in line or "greenview" not in line:
             continue
-        
+
         panoID = line.split(" panoDate")[0][-22:]
         panoDate = line.split(" longitude")[0][-7:]
         coordinate = line.split("longitude: ")[1]
@@ -39,15 +39,15 @@ def Read_GSVinfo_Text(GVI_Res_txt):
         latView = coordinate.split(" latitude: ")[1]
         lat = latView.split(', greenview:')[0]
         greenView = line.split("greenview:")[1]
-        
+
         # check if the greeView data is valid
         if len(greenView)<2:
             continue
-        
+
         elif float(greenView) < 0:
-            print greenView
+            print(greenView)
             continue
-        
+
         # remove the duplicated panorama id
         if panoID not in panoIDLst:
             panoIDLst.append(panoID)
@@ -66,40 +66,40 @@ def Read_GVI_res(GVI_Res):
         This function is used to read the information in text files or folders
         the fundtion will remove the duplicate sites and only select those sites
         have GSV info in green month.
-        
+
         Return:
             panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
-        
+
         Pamameters:
             GVI_Res: the file name of the GSV information text, could be folder or txt file
-        
+
         last modified by Xiaojiang Li, March 27, 2018
         '''
-    
+
     import os,os.path
-    
+
     # empty list to save the GVI result and GSV metadata
     panoIDLst = []
     panoDateLst = []
     panoLonLst = []
     panoLatLst = []
     greenViewLst = []
-    
-    
+
+
     # if the input gvi result is a folder
     if os.path.isdir(GVI_Res):
         allTxtFiles = os.listdir(GVI_Res)
-        
+
         for txtfile in allTxtFiles:
             # only read the text file
             if not txtfile.endswith('.txt'):
                 continue
-            
+
             txtfilename = os.path.join(GVI_Res,txtfile)
-            
+
             # call the function to read txt file to a list
             [panoIDLst_tem,panoDateLst_tem,panoLonLst_tem,panoLatLst_tem,greenViewLst_tem] = Read_GSVinfo_Text(txtfilename)
-            
+
             panoIDLst = panoIDLst + panoIDLst_tem
             panoDateLst = panoDateLst + panoDateLst_tem
             panoLonLst = panoLonLst + panoLonLst_tem
@@ -121,7 +121,7 @@ def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList
     Create a shapefile based on the template of inputShapefile
     This function will delete existing outpuShapefile and create a new shapefile containing points with
     panoID, panoDate, and green view as respective fields.
-    
+
     Parameters:
     outputShapefile: the file path of the output shapefile name, example 'd:\greenview.shp'
       LonLst: the longitude list
@@ -129,11 +129,11 @@ def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList
       panoIDlist: the panorama id list
       panoDateList: the panodate list
       greenViewList: the green view index result list, all these lists can be generated from the function of 'Read_GVI_res'
-    
+
     Copyright(c) Xiaojiang Li, Senseable city lab
-    
+
     last modified by Xiaojiang li, MIT Senseable City Lab on March 27, 2018
-    
+
     """
 
     import ogr
@@ -165,17 +165,17 @@ def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList
         outLayer.CreateField(panoID_Field)
         outLayer.CreateField(panoDate_Field)
         outLayer.CreateField(greenView_Field)
-        
+
         for idx in range(numPnt):
             #create point geometry
             point = ogr.Geometry(ogr.wkbPoint)
 
             # in case of the returned panoLon and PanoLat are invalid
             if len(LonLst[idx]) < 3:
-                continue      
-        
+                continue
+
             point.AddPoint(float(LonLst[idx]),float(LatLst[idx]))
-            
+
             # Create the feature and set values
             featureDefn = outLayer.GetLayerDefn()
             outFeature = ogr.Feature(featureDefn)
@@ -204,13 +204,13 @@ def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList
 if __name__ == "__main__":
     import os
     import sys
-    
+
     inputGVIres = r'MYPATHH/spatial-data/greenViewRes'
     outputShapefile = 'MYPATHH/spatial-data/GreenViewRes.shp'
     lyrname = 'greenView'
     [panoIDlist,panoDateList,LonLst,LatLst,greenViewList] = Read_GVI_res(inputGVIres)
     print ('The length of the panoIDList is:', len(panoIDlist))
-    
+
     CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList,greenViewList,lyrname)
 
     print('Done!!!')
