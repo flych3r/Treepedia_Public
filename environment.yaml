@@ -1,0 +1,23 @@
+name: treepedia
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - gdal
+  - pyproj
+  - fiona
+  - pillow
+  - shapely
+  - matplotlib
+  - xmltodict
+  - numpy
+  - isort
+  - autoflake
+  - black
+  - flake8
+  - tqdm
+  - folium
+  - geopandas
+  - jupyterlab
+prefix: /home/flycher/anaconda3/envs/treepedia
