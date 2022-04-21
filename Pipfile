@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[requires]
+python_version = "3.9"
+
+[pipenv]
+allow_prereleases = true
+
+[packages]
+pillow = "~=9.0.0"
+xmltodict = "~=0.12.0"
+numpy = "~= 1.22.0"
+matplotlib = "~= 3.5.0"
+shapely = "~= 1.8.0"
+fiona = "~=1.8.0"
+
+[dev-packages]
+flake8 = "*"
+flake8-bugbear = "*"
+flake8-docstrings = "*"
+mypy = "*"
+pep8-naming = "*"
+pre-commit = "*"

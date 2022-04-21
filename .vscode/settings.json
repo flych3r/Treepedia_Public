@@ -1,9 +1,5 @@
 {
     "python.pythonPath": "",
     "python.linting.flake8Enabled": true,
-    "python.linting.enabled": true,
-    "cSpell.words": [
-        "pyproj",
-        "xmltodict"
-    ]
+    "python.linting.enabled": true
 }
