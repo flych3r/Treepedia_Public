@@ -17,6 +17,7 @@ import pyproj
 from fiona.crs import from_epsg
 from shapely.geometry import mapping, shape
 from shapely.ops import transform
+from tqdm.auto import tqdm
 
 
 def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
@@ -102,7 +103,7 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     }
 
     # Create pointS along the streets
-    with fiona.drivers():
+    with fiona.Env():
         with fiona.open(
             output_shapefile,
             'w',
@@ -110,7 +111,7 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
             driver='ESRI Shapefile',
             schema=schema,
         ) as output:
-            for line in fiona.open(temp_cleanedStreetmap):
+            for line in tqdm(fiona.open(temp_cleanedStreetmap)):
                 first = shape(line['geometry'])
                 first.length
 
@@ -119,8 +120,8 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
                     # 3857 is pseudo WGS84 the unit is meter
                     project = partial(
                         pyproj.transform,
-                        pyproj.Proj(init='EPSG:4326'),
-                        pyproj.Proj(init='EPSG:3857'),
+                        pyproj.Proj('EPSG:4326'),
+                        pyproj.Proj('EPSG:3857'),
                     )
 
                     line2 = transform(project, first)
@@ -133,8 +134,8 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
                         # and write to the output shp
                         project2 = partial(
                             pyproj.transform,
-                            pyproj.Proj(init='EPSG:3857'),
-                            pyproj.Proj(init='EPSG:4326'),
+                            pyproj.Proj('EPSG:3857'),
+                            pyproj.Proj('EPSG:4326'),
                         )
                         point = transform(project2, point)
                         output.write(
