@@ -8,19 +8,19 @@ First version July 21 2017
 
 
 import argparse
+import json
 import os
 import os.path
 import time
 from pathlib import Path
-from urllib.request import urlopen
 
-import xmltodict
+import requests
 from osgeo import ogr, osr
 from tqdm.auto import tqdm
 
 
 def GSVpanoMetadataCollector(
-    samplesFeatureClass: Path, outputTextFolder: Path, num: int
+    samplesFeatureClass: Path, outputTextFolder: Path, key: str, num: int
 ):
     """
     This function is used to call the Google API url to collect the metadata of
@@ -33,9 +33,10 @@ def GSVpanoMetadataCollector(
         the shapefile of the create sample sites
     ouputTextFolder: Path
         the output folder for the metrics
+    key: str
+        Google Street View API Key
     num: int
         the number of sites processed every time
-
     """
 
     if not os.path.exists(outputTextFolder):
@@ -55,8 +56,8 @@ def GSVpanoMetadataCollector(
     # loop all the features in the featureclass
     feature = layer.GetNextFeature()
     featureNum = layer.GetFeatureCount()
+    num = min(num, featureNum)
     batch = featureNum // num
-
     for b in tqdm(range(batch)):
         # for each batch process num GSV site
         start = b * num
@@ -82,45 +83,36 @@ def GSVpanoMetadataCollector(
                 # transform the current projection of input shapefile to WGS84
                 # WGS84 is Earth centered, earth fixed terrestrial ref system
                 geom.Transform(transform)
-                lon = geom.GetX()
-                lat = geom.GetY()
-                key = r''  # Input Your Key here
-
-                # get the meta data of panoramas
-                urlAddress = r'http://maps.google.com/cbk?output=xml&ll=%s,%s' % (
-                    lat,
-                    lon,
-                )
+                lat = geom.GetX()
+                lon = geom.GetY()
 
                 time.sleep(0.05)
-                # the output result of the meta data is a xml object
-                metaDataxml = urlopen(urlAddress)
-                metaData = metaDataxml.read()
-                data = xmltodict.parse(metaData)
+                metadata = requests.get(
+                    'https://maps.googleapis.com/maps/api/streetview/metadata',
+                    params={
+                        'location': f'{lat},{lon}',
+                        'key': key
+                    }
+                )
+                metadata_json = metadata.json()
 
                 # in case there is not panorama in the site, therefore, continue
-                if data['panorama'] is None:
+                if metadata_json['status'] != 'OK':
                     continue
                 else:
-                    panoInfo = data['panorama']['data_properties']
-
                     # get the meta data of the panorama
-                    panoDate = panoInfo.items()[4][1]
-                    panoId = panoInfo.items()[5][1]
-                    panoLat = panoInfo.items()[8][1]
-                    panoLon = panoInfo.items()[9][1]
+                    panoDate = metadata_json['date']
+                    panoId = metadata_json['pano_id']
+                    panoLat = metadata_json['location']['lat']
+                    panoLng = metadata_json['location']['lng']
 
-                    print(
-                        'The coordinate (%s,%s), panoId is: %s, panoDate is: %s'
-                        % (panoLon, panoLat, panoId, panoDate)
-                    )
-                    lineTxt = 'panoID: %s panoDate: %s longitude: %s latitude: %s\n' % (
-                        panoId,
-                        panoDate,
-                        panoLon,
-                        panoLat,
-                    )
-                    panoInfoText.write(lineTxt)
+                    jsonLine = {
+                        'panoID': panoId,
+                        'panoDate': panoDate,
+                        'longitude': panoLng,
+                        'latitude': panoLat
+                    }
+                    panoInfoText.write(f'{json.dumps(jsonLine)}\n')
 
         panoInfoText.close()
 
@@ -132,6 +124,12 @@ if __name__ == '__main__':
     parser.add_argument('output_metadata', type=Path)
     parser.add_argument('--num', type=int, default=1000)
 
+    key = os.getenv('MAPS_KEY')
+    if key is None:
+        raise Exception('MAPS_KEY not set')
+
     args = parser.parse_args()
 
-    GSVpanoMetadataCollector(args.input_shapefile, args.output_metadata, args.num)
+    GSVpanoMetadataCollector(
+        args.input_shapefile, args.output_metadata, key, args.num
+    )

@@ -20,4 +20,7 @@ dependencies:
   - folium
   - geopandas
   - jupyterlab
-prefix: /home/flycher/anaconda3/envs/treepedia
+  - scikit-learn
+  - scikit-image
+  - osmnx
+prefix: ~/anaconda3/envs/treepedia
