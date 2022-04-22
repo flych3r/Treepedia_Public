@@ -6,8 +6,6 @@ Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, M
 First version July 21 2017
 """
 
-
-import argparse
 import json
 import os
 import os.path
@@ -65,7 +63,7 @@ def GSVpanoMetadataCollector(
         if end > featureNum:
             end = featureNum
 
-        outputTextFile = 'Pnt_start%s_end%s.txt' % (start, end)
+        outputTextFile = f'Pnt_start{start}_end{end}.jsonl'
         outputGSVinfoFile = os.path.join(outputTextFolder, outputTextFile)
 
         # skip over those existing txt files
@@ -118,6 +116,7 @@ def GSVpanoMetadataCollector(
 
 
 if __name__ == '__main__':
+    import argparse
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_shapefile', type=Path)

@@ -1,9 +1,20 @@
-# This script is used to convert the green view index results saved in txt to Shapefile
-# considering the facts many people are more comfortable with shapefile and GIS
-# Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, MIT
+"""
+This script is used to convert the green view index results saved in txt to Shapefile
+considering the facts many people are more comfortable with shapefile and GIS
+Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, MIT
+"""
+
+import glob
+import json
+import os
+import os.path
+from pathlib import Path
+
+from osgeo import ogr, osr
+from tqdm.auto import tqdm
 
 
-def Read_GSVinfo_Text(GVI_Res_txt):
+def Read_GSVinfo_Text(GVI_Res_txt: Path) -> tuple:
     '''
     This function is used to read the information in text files or folders
     the fundtion will remove the duplicate sites and only select those sites
@@ -16,8 +27,6 @@ def Read_GSVinfo_Text(GVI_Res_txt):
         GVI_Res_txt: the file name of the GSV information txt file
     '''
 
-    import os,os.path
-
     # empty list to save the GVI result and GSV metadata
     panoIDLst = []
     panoDateLst = []
@@ -26,27 +35,15 @@ def Read_GSVinfo_Text(GVI_Res_txt):
     greenViewLst = []
 
     # read the green view index result txt files
-    lines = open(GVI_Res_txt,"r")
+    lines = open(GVI_Res_txt, 'r')
     for line in lines:
-        # check the completeness of each line, each line include attribute of, panoDate, lon, lat,greenView
-        if "panoDate" not in line or "greenview" not in line:
-            continue
+        data = json.loads(line)
 
-        panoID = line.split(" panoDate")[0][-22:]
-        panoDate = line.split(" longitude")[0][-7:]
-        coordinate = line.split("longitude: ")[1]
-        lon = coordinate.split(" latitude: ")[0]
-        latView = coordinate.split(" latitude: ")[1]
-        lat = latView.split(', greenview:')[0]
-        greenView = line.split("greenview:")[1]
-
-        # check if the greeView data is valid
-        if len(greenView)<2:
-            continue
-
-        elif float(greenView) < 0:
-            print(greenView)
-            continue
+        panoID = data['panoID']
+        panoDate = '2022-04-22'  # data['panoDate']
+        lon = data['longitude']
+        lat = data['latitude']
+        greenView = data['greenview']
 
         # remove the duplicated panorama id
         if panoID not in panoIDLst:
@@ -56,27 +53,24 @@ def Read_GSVinfo_Text(GVI_Res_txt):
             panoLatLst.append(lat)
             greenViewLst.append(greenView)
 
-    return panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
-
+    return panoIDLst, panoDateLst, panoLonLst, panoLatLst, greenViewLst
 
 
 # read the green view index files into list, the input can be file or folder
-def Read_GVI_res(GVI_Res):
+def Read_GVI_res(GVI_Res: Path) -> tuple:
     '''
-        This function is used to read the information in text files or folders
-        the fundtion will remove the duplicate sites and only select those sites
-        have GSV info in green month.
+    This function is used to read the information in text files or folders
+    the fundtion will remove the duplicate sites and only select those sites
+    have GSV info in green month.
 
-        Return:
-            panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
+    Return:
+        panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
 
-        Pamameters:
-            GVI_Res: the file name of the GSV information text, could be folder or txt file
+    Pamameters:
+        GVI_Res: the file name of the GSV information text, could be folder or txt file
 
-        last modified by Xiaojiang Li, March 27, 2018
-        '''
-
-    import os,os.path
+    last modified by Xiaojiang Li, March 27, 2018
+    '''
 
     # empty list to save the GVI result and GSV metadata
     panoIDLst = []
@@ -85,50 +79,44 @@ def Read_GVI_res(GVI_Res):
     panoLatLst = []
     greenViewLst = []
 
+    allTxtFiles = glob.glob(str(GVI_Res / '*.jsonl'))
 
-    # if the input gvi result is a folder
-    if os.path.isdir(GVI_Res):
-        allTxtFiles = os.listdir(GVI_Res)
+    for txtfilename in allTxtFiles:
+        # call the function to read txt file to a list
+        gsv_info = Read_GSVinfo_Text(txtfilename)
 
-        for txtfile in allTxtFiles:
-            # only read the text file
-            if not txtfile.endswith('.txt'):
-                continue
+        panoIDLst.extend(gsv_info[0])
+        panoDateLst.extend(gsv_info[1])
+        panoLonLst.extend(gsv_info[2])
+        panoLatLst.extend(gsv_info[3])
+        greenViewLst.extend(gsv_info[4])
 
-            txtfilename = os.path.join(GVI_Res,txtfile)
-
-            # call the function to read txt file to a list
-            [panoIDLst_tem,panoDateLst_tem,panoLonLst_tem,panoLatLst_tem,greenViewLst_tem] = Read_GSVinfo_Text(txtfilename)
-
-            panoIDLst = panoIDLst + panoIDLst_tem
-            panoDateLst = panoDateLst + panoDateLst_tem
-            panoLonLst = panoLonLst + panoLonLst_tem
-            panoLatLst = panoLatLst + panoLatLst_tem
-            greenViewLst = greenViewLst + greenViewLst_tem
-
-    else: #for single txt file
-        [panoIDLst_tem,panoDateLst_tem,panoLonLst_tem,panoLatLst_tem,greenViewLst_tem] = Read_GSVinfo_Text(txtfilename)
+    return panoIDLst, panoDateLst, panoLonLst, panoLatLst, greenViewLst
 
 
-    return panoIDLst,panoDateLst,panoLonLst,panoLatLst,greenViewLst
-
-
-
-
-def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList,greenViewList,lyrname):
-
+def CreatePointFeature_ogr(
+    outputShapefile: Path,
+    panoIDLst: list,
+    panoDateLst: list,
+    panoLonLst: list,
+    panoLatLst: list,
+    greenViewLst: list,
+    layer_name: str
+):
     """
     Create a shapefile based on the template of inputShapefile
-    This function will delete existing outpuShapefile and create a new shapefile containing points with
+    This function will delete existing outpuShapefile and create
+    a new shapefile containing points with
     panoID, panoDate, and green view as respective fields.
 
     Parameters:
-    outputShapefile: the file path of the output shapefile name, example 'd:\greenview.shp'
+    outputShapefile: the file path of the output shapefile name
       LonLst: the longitude list
       LatLst: the latitude list
       panoIDlist: the panorama id list
       panoDateList: the panodate list
-      greenViewList: the green view index result list, all these lists can be generated from the function of 'Read_GVI_res'
+      greenViewList: the green view index result list, all these lists
+      can be generated from the function of 'Read_GVI_res'
 
     Copyright(c) Xiaojiang Li, Senseable city lab
 
@@ -136,81 +124,76 @@ def CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList
 
     """
 
-    import ogr
-    import osr
-
     # create shapefile and add the above chosen random points to the shapfile
-    driver = ogr.GetDriverByName("ESRI Shapefile")
+    driver = ogr.GetDriverByName('ESRI Shapefile')
 
     # create new shapefile
     if os.path.exists(outputShapefile):
-        driver.DeleteDataSource(outputShapefile)
+        driver.DeleteDataSource(str(outputShapefile))
 
-    data_source = driver.CreateDataSource(outputShapefile)
+    data_source = driver.CreateDataSource(str(outputShapefile))
     targetSpatialRef = osr.SpatialReference()
     targetSpatialRef.ImportFromEPSG(4326)
 
-    outLayer = data_source.CreateLayer(lyrname, targetSpatialRef, ogr.wkbPoint)
-    numPnt = len(LonLst)
+    outLayer = data_source.CreateLayer(layer_name, targetSpatialRef, ogr.wkbPoint)
 
-    print 'the number of points is:',numPnt
+    # create a field
+    idField = ogr.FieldDefn('PntNum', ogr.OFTInteger)
+    panoID_Field = ogr.FieldDefn('panoID', ogr.OFTString)
+    panoDate_Field = ogr.FieldDefn('panoDate', ogr.OFTString)
+    greenView_Field = ogr.FieldDefn('greenView', ogr.OFTReal)
+    outLayer.CreateField(idField)
+    outLayer.CreateField(panoID_Field)
+    outLayer.CreateField(panoDate_Field)
+    outLayer.CreateField(greenView_Field)
 
-    if numPnt > 0:
-        # create a field
-        idField = ogr.FieldDefn('PntNum', ogr.OFTInteger)
-        panoID_Field = ogr.FieldDefn('panoID', ogr.OFTString)
-        panoDate_Field = ogr.FieldDefn('panoDate', ogr.OFTString)
-        greenView_Field = ogr.FieldDefn('greenView',ogr.OFTReal)
-        outLayer.CreateField(idField)
-        outLayer.CreateField(panoID_Field)
-        outLayer.CreateField(panoDate_Field)
-        outLayer.CreateField(greenView_Field)
+    for idx, (panoID, panoDate, lat, lng, gvi) in tqdm(
+        enumerate(zip(panoIDLst, panoDateLst, panoLonLst, panoLatLst, greenViewLst)),
+        total=len(panoIDLst)
+    ):
+        # create point geometry
+        point = ogr.Geometry(ogr.wkbPoint)
 
-        for idx in range(numPnt):
-            #create point geometry
-            point = ogr.Geometry(ogr.wkbPoint)
+        point.AddPoint(float(lng), float(lat))
 
-            # in case of the returned panoLon and PanoLat are invalid
-            if len(LonLst[idx]) < 3:
-                continue
+        # Create the feature and set values
+        featureDefn = outLayer.GetLayerDefn()
+        outFeature = ogr.Feature(featureDefn)
+        outFeature.SetGeometry(point)
+        outFeature.SetField('PntNum', idx)
+        outFeature.SetField('panoID', panoID)
+        outFeature.SetField('panoDate', panoDate)
+        outFeature.SetField('greenView', float(gvi))
 
-            point.AddPoint(float(LonLst[idx]),float(LatLst[idx]))
+        outLayer.CreateFeature(outFeature)
+        outFeature.Destroy()
 
-            # Create the feature and set values
-            featureDefn = outLayer.GetLayerDefn()
-            outFeature = ogr.Feature(featureDefn)
-            outFeature.SetGeometry(point)
-            outFeature.SetField('PntNum', idx)
-            outFeature.SetField('panoID', panoIDlist[idx])
-            outFeature.SetField('panoDate',panoDateList[idx])
-
-            if len(greenViewList) == 0:
-                outFeature.SetField('greenView',-999)
-            else:
-                outFeature.SetField('greenView',float(greenViewList[idx]))
-
-            outLayer.CreateFeature(outFeature)
-            outFeature.Destroy()
-
-        data_source.Destroy()
-
-    else:
-        print 'You created a empty shapefile'
+    data_source.Destroy()
 
 
+if __name__ == '__main__':
+    import argparse
 
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('input_greenview', type=Path)
+    parser.add_argument('output_shapefile', type=Path)
 
-## ----------------- Main function ------------------------
-if __name__ == "__main__":
-    import os
-    import sys
+    args = parser.parse_args()
 
-    inputGVIres = r'MYPATHH/spatial-data/greenViewRes'
-    outputShapefile = 'MYPATHH/spatial-data/GreenViewRes.shp'
-    lyrname = 'greenView'
-    [panoIDlist,panoDateList,LonLst,LatLst,greenViewList] = Read_GVI_res(inputGVIres)
-    print ('The length of the panoIDList is:', len(panoIDlist))
+    layer_name = 'greenView'
 
-    CreatePointFeature_ogr(outputShapefile,LonLst,LatLst,panoIDlist,panoDateList,greenViewList,lyrname)
+    panoIDlist, panoDateList, LonLst, LatLst, greenViewList = Read_GVI_res(
+        args.input_greenview
+    )
+
+    CreatePointFeature_ogr(
+        args.output_shapefile,
+        panoIDlist,
+        panoDateList,
+        LonLst,
+        LatLst,
+        greenViewList,
+        layer_name
+    )
 
     print('Done!!!')

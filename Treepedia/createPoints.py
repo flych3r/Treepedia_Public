@@ -6,7 +6,6 @@ Copyright(C) Ian Seiferling, Xiaojiang Li, Marwa Abdulhai, Senseable City Lab, M
 First version July 21 2017
 """
 
-import argparse
 import os
 import os.path
 from functools import partial
@@ -152,6 +151,8 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
 
 
 if __name__ == '__main__':
+    import argparse
+
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_shapefile', type=Path)
     parser.add_argument('output_shapefile', type=Path)

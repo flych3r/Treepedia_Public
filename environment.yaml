@@ -23,4 +23,5 @@ dependencies:
   - scikit-learn
   - scikit-image
   - osmnx
+  - seaborn
 prefix: ~/anaconda3/envs/treepedia

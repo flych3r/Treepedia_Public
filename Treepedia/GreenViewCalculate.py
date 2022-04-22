@@ -18,7 +18,6 @@ Copyright(C) Xiaojiang Li, Ian Seiferling, Marwa Abdulhai, Senseable City Lab, M
 First version June 18, 2014
 """
 
-import argparse
 import glob
 import json
 import os
@@ -120,7 +119,7 @@ def GreenViewComputing_ogr_6Horizon(
         print('You should input a folder for GSV metadata')
         return
     else:
-        allTxtFiles = glob.glob(str(GSVinfoFolder / '*.txt'))
+        allTxtFiles = glob.glob(str(GSVinfoFolder / '*.jsonl'))
         for txtfilename in tqdm(allTxtFiles):
             lines = open(txtfilename, 'r')
 
@@ -151,7 +150,7 @@ def GreenViewComputing_ogr_6Horizon(
 
             # the output text file to store the green view and pano info
             txtfile = txtfilename.split('/')[-1].split('.')[0]
-            gvTxt = f'GV_{os.path.basename(txtfile)}'
+            gvTxt = f'GV_{os.path.basename(txtfile)}.jsonl'
             GreenViewTxtFile = os.path.join(outTXTRoot, gvTxt)
 
             # check whether the file already generated, if yes, skip.
@@ -208,6 +207,7 @@ def GreenViewComputing_ogr_6Horizon(
                     panoID
                     jsonLine = {
                         'panoID': panoID,
+                        'panoDate': panoDate,
                         'longitude': lng,
                         'latitude': lat,
                         'greenview': greenViewVal
@@ -216,6 +216,7 @@ def GreenViewComputing_ogr_6Horizon(
 
 
 if __name__ == '__main__':
+    import argparse
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_metadata', type=Path)
