@@ -24,7 +24,7 @@ def pano_metadata_collector(
     the create sample site, the output is the generate metrics stored in the text file
 
     Parameters
-    __________
+    ----------
     input_shapefile: Path
         the shapefile of the create sample sites
     output_metadata: Path
@@ -34,7 +34,6 @@ def pano_metadata_collector(
     num_sites: int
         the number of sites processed every time
     """
-
     output_metadata.mkdir(exist_ok=True)
 
     driver = ogr.GetDriverByName('ESRI Shapefile')
@@ -99,13 +98,13 @@ def pano_metadata_collector(
                     pano_lat = metadata_json['location']['lat']
                     pano_lng = metadata_json['location']['lng']
 
-                    jsonLine = {
+                    json_line = {
                         'panoID': pano_id,
                         'panoDate': pano_date,
                         'longitude': pano_lng,
                         'latitude': pano_lat
                     }
-                    pano_metadata.write(f'{json.dumps(jsonLine)}\n')
+                    pano_metadata.write(f'{json.dumps(json_line)}\n')
 
 
 if __name__ == '__main__':

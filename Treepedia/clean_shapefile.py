@@ -32,8 +32,7 @@ def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     min_dist: int
         the minimum distance between two created point
     """
-
-    s = {
+    pathway_types = {
         'trunk_link',
         'tertiary',
         'motorway',
@@ -79,7 +78,7 @@ def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
         for feat in source:
             try:
                 i = feat['properties']['highway']  # for the OSM street data
-                if i in s:
+                if i in pathway_types:
                     continue
             except Exception:
                 # if the street map is not osm, do nothing.
@@ -88,7 +87,7 @@ def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
                 # get the field of the input shapefile and duplicate the input feature
                 key = list(dest.schema['properties'].keys())[0]
                 i = feat['properties'][key]
-                if i in s:
+                if i in pathway_types:
                     continue
             dest.write(feat)
 

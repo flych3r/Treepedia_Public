@@ -27,7 +27,6 @@ def read_gvi_data(input_gvi_data: Path) -> list:
     list
         list of dictionary with gvi data
     """
-
     unique_pano_ids = set()
     gvi_data = []
 
@@ -84,11 +83,11 @@ def create_point_feature_ogr(
     out_layer = data_source.CreateLayer(layer_name, target_spatial_ref, ogr.wkbPoint)
 
     # create a field
-    idField = ogr.FieldDefn('PntNum', ogr.OFTInteger)
+    id_field = ogr.FieldDefn('PntNum', ogr.OFTInteger)
     pano_id_field = ogr.FieldDefn('panoID', ogr.OFTString)
     pano_date_field = ogr.FieldDefn('panoDate', ogr.OFTString)
     green_view_field = ogr.FieldDefn('greenView', ogr.OFTReal)
-    out_layer.CreateField(idField)
+    out_layer.CreateField(id_field)
     out_layer.CreateField(pano_id_field)
     out_layer.CreateField(pano_date_field)
     out_layer.CreateField(green_view_field)

@@ -47,7 +47,6 @@ def vegetation_classification(image: np.array) -> float:
 
     By Xiaojiang Li
     """
-
     img = image / 255.0
 
     red = img[:, :, 0]
@@ -58,7 +57,7 @@ def vegetation_classification(image: np.array) -> float:
     green_red_diff = green - red
     green_blue_diff = green - blue
 
-    ExG = green_red_diff + green_blue_diff
+    green_pixels = green_red_diff + green_blue_diff
 
     red_thre_img_u = red < 0.6
     green_thre_img_u = green < 0.9
@@ -71,10 +70,10 @@ def vegetation_classification(image: np.array) -> float:
     green_img_thre = red_thre_img_u * blue_thre_img_u * green_thre_img_u
     green_img_shadow = shadow_red_u * shadow_green_u * shadow_blue_u
 
-    threshold = threshold_otsu(ExG)
+    threshold = threshold_otsu(green_pixels)
 
-    green_mask = ExG > threshold
-    green_shadow_mask = ExG > 0.05
+    green_mask = green_pixels > threshold
+    green_shadow_mask = green_pixels > 0.05
     green_img = green_img_thre * green_mask + green_shadow_mask * green_img_shadow
 
     # calculate the percentage of the green vegetation
@@ -195,14 +194,14 @@ def green_view_computing(
                     # calculate the green view index by averaging percents from images
                     green_view_index = np.mean([*map(vegetation_classification, images)])
                     # write the result and the pano info to the result txt file
-                    jsonLine = {
+                    json_line = {
                         'panoID': pano_id,
                         'panoDate': pano_date,
                         'longitude': lng,
                         'latitude': lat,
                         'greenview': green_view_index
                     }
-                    gv_indexes.write(f'{json.dumps(jsonLine)}\n')
+                    gv_indexes.write(f'{json.dumps(json_line)}\n')
 
 
 if __name__ == '__main__':
