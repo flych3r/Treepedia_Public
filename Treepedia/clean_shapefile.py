@@ -6,8 +6,6 @@ Copyright(C) Ian Seiferling, Xiaojiang Li, Marwa Abdulhai, Senseable City Lab, M
 First version July 21 2017
 """
 
-import os
-import os.path
 from functools import partial
 from pathlib import Path
 
@@ -19,7 +17,7 @@ from shapely.ops import transform
 from tqdm.auto import tqdm
 
 
-def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
+def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     """
     This function will parse through the street network of provided city and
     clean all highways and create points every min_dist meters (or as specified) along
@@ -33,8 +31,6 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
         the result point feature class
     min_dist: int
         the minimum distance between two created point
-
-    last modified by Xiaojiang Li, MIT Senseable City Lab
     """
 
     s = {
@@ -59,20 +55,20 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     }
 
     # the temporaray file of the cleaned data
-    root = os.path.dirname(input_shapefile)
-    basename = 'clean_' + os.path.basename(input_shapefile)
-    temp_cleanedStreetmap = os.path.join(root, basename)
+    root = input_shapefile.parent
+    basename = f'clean_{input_shapefile.name}'
+    temp_cleaned_streetmap = root / basename
 
     # if the tempfile exist then delete it
-    if os.path.exists(temp_cleanedStreetmap):
-        fiona.remove(temp_cleanedStreetmap, 'ESRI Shapefile')
+    if temp_cleaned_streetmap.exists():
+        fiona.remove(temp_cleaned_streetmap, 'ESRI Shapefile')
 
     # clean the original street maps by removing highways, if it the street map
     # not from Open street data, users'd better to clean the data themselves
     with (
         fiona.open(input_shapefile) as source,
         fiona.open(
-            temp_cleanedStreetmap,
+            temp_cleaned_streetmap,
             'w',
             driver=source.driver,
             crs=source.crs,
@@ -110,7 +106,9 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
             driver='ESRI Shapefile',
             schema=schema,
         ) as output:
-            for line in tqdm(fiona.open(temp_cleanedStreetmap)):
+            for line in tqdm(
+                fiona.open(temp_cleaned_streetmap), desc='cleaning shapefile'
+            ):
                 first = shape(line['geometry'])
                 first.length
 
@@ -147,7 +145,7 @@ def createPoints(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     print('Process Complete')
 
     # delete the temporary cleaned shapefile
-    fiona.remove(temp_cleanedStreetmap, 'ESRI Shapefile')
+    fiona.remove(str(temp_cleaned_streetmap), 'ESRI Shapefile')
 
 
 if __name__ == '__main__':
@@ -160,4 +158,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    createPoints(args.input_shapefile, args.output_shapefile, args.min_dist)
+    create_points(args.input_shapefile, args.output_shapefile, args.min_dist)
