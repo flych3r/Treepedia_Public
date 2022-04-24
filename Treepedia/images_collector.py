@@ -7,11 +7,14 @@ from pathlib import Path
 import aiohttp
 from PIL import Image
 from tqdm.auto import tqdm
+from yarl import URL
 
 try:
     from utils.concurrent import gather_with_concurrency
+    from utils.url import add_params_to_url, sign_url
 except ModuleNotFoundError:
     from .utils.concurrent import gather_with_concurrency
+    from .utils.url import add_params_to_url, sign_url
 
 
 async def streetview_image(
@@ -20,7 +23,8 @@ async def streetview_image(
     fov: int,
     heading: int,
     pitch: int,
-    api_key: str
+    api_key: str,
+    signature_secret: str
 ):
     """
     Fetches image from Stree View API
@@ -39,8 +43,10 @@ async def streetview_image(
         pano pitch
     api_key : str
         the Google Street View API key
+    signature_secret: str
+        Google Street View Signature Key
     """
-    async with session.get(
+    request_url = add_params_to_url(
         'http://maps.googleapis.com/maps/api/streetview',
         params={
             'size': '400x400',
@@ -51,7 +57,9 @@ async def streetview_image(
             'sensor': 'false',
             'key': api_key
         }
-    ) as response:
+    )
+    signed_url = sign_url(request_url, signature_secret)
+    async with session.get(URL(signed_url, encoded=True)) as response:
         info = (pano_id, fov, heading, pitch)
         if response.ok:
             img_content = await response.content.read()
@@ -65,6 +73,7 @@ async def pano_images_collector(
     greenmonths: list,
     num_gsv_imgs: int,
     api_key: str,
+    signature_secret: str
 ):
     """
     This function is used to download the GSV from the information provide
@@ -83,6 +92,8 @@ async def pano_images_collector(
         the number of images to view at each point
     api_key : str
         the Google Street View API key
+    signature_secret: str
+        Google Street View Signature Key
     """
     fov = 360 // num_gsv_imgs
     pitch = 0
@@ -113,9 +124,6 @@ async def pano_images_collector(
                 # create empty lists, to store the information of panos,
                 # and remove duplicates
                 pano_ids = []
-                pano_dates = []
-                pano_longitudes = []
-                pano_latitudes = []
 
                 # loop all lines in the txt files
                 for line in tqdm(lines, leave=False):
@@ -124,8 +132,6 @@ async def pano_images_collector(
                     pano_id = metadata['panoID']
                     pano_date = metadata['panoDate']
                     month = pano_date.split('-')[-1]
-                    lng = metadata['longitude']
-                    lat = metadata['latitude']
 
                     if (
                         int(month) not in map(int, greenmonths)
@@ -141,7 +147,8 @@ async def pano_images_collector(
                     for heading in headings:
                         svi_requests.append(
                             streetview_image(
-                                session, pano_id, fov, heading, pitch, api_key
+                                session, pano_id, fov, heading, pitch,
+                                api_key, signature_secret
                             )
                         )
 
@@ -177,8 +184,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     API_KEY = os.getenv('MAPS_KEY')
-    if API_KEY is None:
-        raise Exception('MAPS_KEY not set')
+    SIGNATURE_SECRET = os.getenv('SIGNATURE_SECRET')
+    if API_KEY is None or SIGNATURE_SECRET is None:
+        raise Exception('MAPS_KEY or SIGNATURE_SECRET not set')
 
     asyncio.run(
         pano_images_collector(
@@ -187,5 +195,6 @@ if __name__ == '__main__':
             args.greenmonth,
             args.num_images,
             API_KEY,
+            SIGNATURE_SECRET
         )
     )

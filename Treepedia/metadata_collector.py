@@ -15,15 +15,22 @@ from pathlib import Path
 import aiohttp
 from osgeo import ogr, osr
 from tqdm.auto import tqdm
+from yarl import URL
 
 try:
     from utils.concurrent import gather_with_concurrency
+    from utils.url import add_params_to_url, sign_url
 except ModuleNotFoundError:
     from .utils.concurrent import gather_with_concurrency
+    from .utils.url import add_params_to_url, sign_url
 
 
 async def streetview_metadata(
-    session: aiohttp.ClientSession, lat: float, lon: float, api_key: str
+    session: aiohttp.ClientSession,
+    lat: float,
+    lon: float,
+    api_key: str,
+    signature_secret: str
 ) -> dict:
     """
     Fetches street view metadata asynchronously
@@ -38,24 +45,32 @@ async def streetview_metadata(
         point longitude
     api_key : str
          Google Street View API Key
+    signature_secret: str
+        Google Street View Signature Key
 
     Returns
     -------
     dict
         json response
     """
-    async with session.get(
+    request_url = add_params_to_url(
         'https://maps.googleapis.com/maps/api/streetview/metadata',
         params={
             'location': f'{lat},{lon}',
             'key': api_key
         }
-    ) as response:
+    )
+    signed_url = sign_url(request_url, signature_secret)
+    async with session.get(URL(signed_url, encoded=True)) as response:
         return await response.json()
 
 
 async def pano_metadata_collector(
-    input_shapefile: Path, output_metadata: Path, num_sites: int, api_key: str
+    input_shapefile: Path,
+    output_metadata: Path,
+    num_sites: int,
+    api_key: str,
+    signature_secret: str
 ):
     """
     This function is used to call the Google API url to collect the metadata of
@@ -72,6 +87,8 @@ async def pano_metadata_collector(
         the number of sites processed every time
     api_key: str
         Google Street View API Key
+    signature_secret: str
+        Google Street View Signature Key
     """
     output_metadata.mkdir(exist_ok=True)
 
@@ -124,7 +141,7 @@ async def pano_metadata_collector(
                         longitudes.append(geom.GetY())
 
                     batch_metadata = await gather_with_concurrency(*[
-                        streetview_metadata(session, lat, lon, api_key)
+                        streetview_metadata(session, lat, lon, api_key, signature_secret)
                         for lat, lon in zip(latitudes, longitudes)
                     ])
 
@@ -161,13 +178,18 @@ if __name__ == '__main__':
     parser.add_argument('--num', type=int, default=500)
 
     API_KEY = os.getenv('MAPS_KEY')
-    if API_KEY is None:
-        raise Exception('MAPS_KEY not set')
+    SIGNATURE_SECRET = os.getenv('SIGNATURE_SECRET')
+    if API_KEY is None or SIGNATURE_SECRET is None:
+        raise Exception('MAPS_KEY or SIGNATURE_SECRET not set')
 
     args = parser.parse_args()
 
     asyncio.run(
         pano_metadata_collector(
-            args.input_shapefile, args.output_metadata, args.num, API_KEY
+            args.input_shapefile,
+            args.output_metadata,
+            args.num,
+            API_KEY,
+            SIGNATURE_SECRET
         )
     )

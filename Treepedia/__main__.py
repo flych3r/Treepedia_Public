@@ -11,8 +11,9 @@ if __name__ == '__main__':
     from Treepedia.metadata_collector import pano_metadata_collector
 
     API_KEY = os.getenv('MAPS_KEY')
-    if API_KEY is None:
-        raise Exception('MAPS_KEY not set')
+    SIGNATURE_SECRET = os.getenv('SIGNATURE_SECRET')
+    if API_KEY is None or SIGNATURE_SECRET is None:
+        raise Exception('MAPS_KEY or SIGNATURE_SECRET not set')
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_shapefile', type=Path)
@@ -51,7 +52,8 @@ if __name__ == '__main__':
             args.input_shapefile,
             args.output_metadata,
             args.num,
-            API_KEY
+            API_KEY,
+            SIGNATURE_SECRET
         )
     )
     asyncio.run(
@@ -61,6 +63,7 @@ if __name__ == '__main__':
             args.greenmonth,
             args.num_images,
             API_KEY,
+            SIGNATURE_SECRET
         )
     )
     green_view_computing(
