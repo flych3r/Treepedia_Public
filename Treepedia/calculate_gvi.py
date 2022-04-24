@@ -20,10 +20,10 @@ First version June 18, 2014
 
 import json
 import os
+from multiprocessing import Pool
 from pathlib import Path
 
 import numpy as np
-import requests
 from PIL import Image
 from skimage.filters import threshold_otsu
 from skimage.segmentation import felzenszwalb
@@ -126,13 +126,45 @@ def vegetation_classification(image: np.array, segment: bool = True) -> float:
     return green_percent
 
 
+def process_images(metadata: dict, segment: bool, input_streetview: Path) -> dict:
+    """
+    Calculates the GVI for a pano
+
+    Parameters
+    ----------
+    metadata : dict
+        pano data
+    segment : bool
+        if image will be segmented
+    input_streetview : Path
+        path to the pano images
+
+    Returns
+    -------
+    dict
+        data with greenview index
+    """
+    pano_id = metadata['panoID']
+
+    pano_images_path: Path = (input_streetview / pano_id)
+    images_paths = pano_images_path.glob('*.png')
+    images = [
+        np.array(Image.open(p)) for p in images_paths
+    ]
+
+    # calculate the green view index by averaging percents from images
+    green_view_index = np.mean([
+        *map(lambda img: vegetation_classification(img, segment), images)
+    ])
+    metadata['greenview'] = green_view_index
+    return metadata
+
+
 def green_view_computing(
     input_metadata: Path,
-    output_greenview: Path,
-    greenmonths: list,
-    num_gsv_imgs: int,
+    input_streetview: Path,
+    output_greenview_index: Path,
     segment: bool,
-    api_key: str,
 ):
     """
     This function is used to download the GSV from the information provide
@@ -140,117 +172,46 @@ def green_view_computing(
 
     Parameters
     ----------
-    input_metadata : Path
+    input_metadata: Path
         the input folder name of GSV info
-    output_greenview : Path
+    input_streetview : Path
+        the input folder with streetview images
+    output_greenview_index : Path
         the output folder to store result green result
-    greenmonths : list
-        a list of the green season,
-        for example in Boston, greenmonth = ['05','06','07','08','09']
-    num_gsv_imgs : int
-        the number of images to view at each point
     segment: bool, optional
         if the image will be segmented before calculating gvi
-    api_key : str
-        the Google Street View API key
     """
-    fov = 360 // num_gsv_imgs
-    pitch = 0
+    metadata_files = input_metadata.glob('*.jsonl')
+    output_greenview_index.mkdir(exist_ok=True)
 
-    headings = fov * np.array(range(3))
+    for meta_file in tqdm(sorted(metadata_files), desc='processing gsv images'):
+        with meta_file.open('r') as f:
+            lines = f.readlines()
 
-    gsv_images_path = output_greenview / 'images'
-    gsv_images_path.mkdir(exist_ok=True, parents=True)
+        panos_metadata = list(map(json.loads, lines))
+        gv_file_name = f'GV_{meta_file.stem}.jsonl'
+        gv_file_path = output_greenview_index / gv_file_name
 
-    # the input GSV info should be in a folder
-    if not input_metadata:
-        print('You should input a folder for GSV metadata')
-        return
-    else:
-        metadata_files = input_metadata.glob('*.jsonl')
+        # check whether the file already generated, if yes, skip.
+        # Therefore, you can run several process at same time using this code.
+        if gv_file_path.exists():
+            continue
 
-        for meta_file in tqdm(sorted(metadata_files), desc='processing gsv images'):
-            with meta_file.open('r') as f:
-                lines = f.readlines()
+        threads = os.cpu_count()
 
-            # create empty lists, to store the information of panos,and remove duplicates
-            pano_ids = []
-            pano_dates = []
-            pano_longitudes = []
-            pano_latitudes = []
+        with Pool(threads) as p:
+            jobs = [
+                p.apply_async(
+                    process_images, args=(metadata, segment, input_streetview)
+                )
+                for metadata in panos_metadata
+            ]
+            metadata_gvi = [job.get() for job in tqdm(jobs, leave=False)]
 
-            # loop all lines in the txt files
-            for line in tqdm(lines, leave=False):
-                metadata = json.loads(line)
-
-                pano_id = metadata['panoID']
-                pano_date = metadata['panoDate']
-                month = pano_date.split('-')[-1]
-                lng = metadata['longitude']
-                lat = metadata['latitude']
-
-                # only use the months of green seasons
-                if int(month) not in map(int, greenmonths):
-                    continue
-                else:
-                    pano_ids.append(pano_id)
-                    pano_dates.append(pano_date)
-                    pano_longitudes.append(lng)
-                    pano_latitudes.append(lat)
-
-            # the output text file to store the green view and pano info
-            gv_file_name = f'GV_{meta_file.stem}.jsonl'
-            gv_file_path = output_greenview / gv_file_name
-
-            # check whether the file already generated, if yes, skip.
-            # Therefore, you can run several process at same time using this code.
-            if gv_file_path.exists():
-                continue
-
+        # # write the result and the pano info to the result txt file
+        with gv_file_path.open('w') as gv_indexes:
             # write the green view and pano info to txt
-            with gv_file_path.open('w') as gv_indexes:
-                for pano_id, pano_date, lat, lng in tqdm(
-                    zip(pano_ids, pano_dates, pano_latitudes, pano_longitudes),
-                    leave=False,
-                    total=len(pano_ids)
-                ):
-                    # calculate the green view index
-                    images = []
-                    for heading in headings:
-                        # classify the GSV images and calculate the GVI
-                        image_data = requests.get(
-                            'http://maps.googleapis.com/maps/api/streetview',
-                            params={
-                                'size': '400x400',
-                                'pano': pano_id,
-                                'fov': fov,
-                                'heading': heading,
-                                'pitch': pitch,
-                                'sensor': 'false',
-                                'key': api_key
-                            },
-                            stream=True
-                        )
-                        if image_data.ok:
-                            img = Image.open(image_data.raw)
-                            img_name = f'{pano_id}-{fov}-{heading}-{pitch}.png'
-                            img.save(gsv_images_path / img_name)
-                            img_array = np.array(img)
-                            images.append(img_array)
-
-                    # calculate the green view index by averaging percents from images
-                    green_view_index = np.mean([
-                        *map(lambda img: vegetation_classification(img, segment), images)
-                    ])
-                    # write the result and the pano info to the result txt file
-                    json_line = {
-                        'panoID': pano_id,
-                        'panoDate': pano_date,
-                        'longitude': lng,
-                        'latitude': lat,
-                        'greenview': green_view_index
-                    }
-                    gv_indexes.write(f'{json.dumps(json_line)}\n')
+            [gv_indexes.write(f'{json.dumps(gvi)}\n') for gvi in metadata_gvi]
 
 
 if __name__ == '__main__':
@@ -258,17 +219,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_metadata', type=Path)
-    parser.add_argument('output_greenview', type=Path)
-    parser.add_argument(
-        '--greenmonth',
-        type=list,
-        default=list(range(1, 13))
-    )
-    parser.add_argument(
-        '--num_images',
-        type=int,
-        default=3
-    )
+    parser.add_argument('input_streetview', type=Path)
+    parser.add_argument('output_greenview_index', type=Path)
     parser.add_argument(
         '--segment',
         type=bool,
@@ -277,15 +229,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    API_KEY = os.getenv('MAPS_KEY')
-    if API_KEY is None:
-        raise Exception('MAPS_KEY not set')
-
     green_view_computing(
         args.input_metadata,
-        args.output_greenview,
-        args.greenmonth,
-        args.num_images,
+        args.input_streetview,
+        args.output_greenview_index,
         args.segment,
-        API_KEY,
     )

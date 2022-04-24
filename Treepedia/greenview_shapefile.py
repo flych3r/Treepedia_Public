@@ -114,14 +114,14 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('input_greenview', type=Path)
+    parser.add_argument('input_greenview_index', type=Path)
     parser.add_argument('output_shapefile', type=Path)
 
     args = parser.parse_args()
 
     layer_name = 'greenView'
 
-    greenview_data = read_gvi_data(args.input_greenview)
+    greenview_data = read_gvi_data(args.input_greenview_index)
 
     create_point_feature_ogr(
         args.output_shapefile,

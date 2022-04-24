@@ -6,6 +6,7 @@ Copyright(C) Ian Seiferling, Xiaojiang Li, Marwa Abdulhai, Senseable City Lab, M
 First version July 21 2017
 """
 
+import tempfile
 from functools import partial
 from pathlib import Path
 
@@ -54,13 +55,7 @@ def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
     }
 
     # the temporaray file of the cleaned data
-    root = input_shapefile.parent
-    basename = f'clean_{input_shapefile.name}'
-    temp_cleaned_streetmap = root / basename
-
-    # if the tempfile exist then delete it
-    if temp_cleaned_streetmap.exists():
-        fiona.remove(temp_cleaned_streetmap, 'ESRI Shapefile')
+    temp_cleaned_streetmap = tempfile.mkdtemp()
 
     # clean the original street maps by removing highways, if it the street map
     # not from Open street data, users'd better to clean the data themselves

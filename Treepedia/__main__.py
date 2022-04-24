@@ -1,11 +1,13 @@
 if __name__ == '__main__':
     import argparse
+    import asyncio
     import os
     from pathlib import Path
 
     from Treepedia.calculate_gvi import green_view_computing
     from Treepedia.clean_shapefile import create_points
     from Treepedia.greenview_shapefile import create_point_feature_ogr, read_gvi_data
+    from Treepedia.images_collector import pano_images_collector
     from Treepedia.metadata_collector import pano_metadata_collector
 
     API_KEY = os.getenv('MAPS_KEY')
@@ -16,10 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('input_shapefile', type=Path)
     parser.add_argument('output_clean_shapefile', type=Path)
     parser.add_argument('output_metadata', type=Path)
-    parser.add_argument('output_greenview', type=Path)
+    parser.add_argument('output_streetview', type=Path)
+    parser.add_argument('output_greenview_index', type=Path)
     parser.add_argument('output_greenview_shapefile', type=Path)
     parser.add_argument('--min_dist', type=int, default=20)
-    parser.add_argument('--num', type=int, default=1000)
+    parser.add_argument('--num', type=int, default=500)
     parser.add_argument(
         '--greenmonth',
         type=list,
@@ -43,19 +46,31 @@ if __name__ == '__main__':
         args.output_clean_shapefile,
         args.min_dist
     )
-    pano_metadata_collector(
-        args.output_clean_shapefile, args.output_metadata, args.num, API_KEY
+    asyncio.run(
+        pano_metadata_collector(
+            args.input_shapefile,
+            args.output_metadata,
+            args.num,
+            API_KEY
+        )
+    )
+    asyncio.run(
+        pano_images_collector(
+            args.output_metadata,
+            args.output_streetview,
+            args.greenmonth,
+            args.num_images,
+            API_KEY,
+        )
     )
     green_view_computing(
         args.output_metadata,
-        args.output_greenview,
-        args.greenmonth,
-        args.num_images,
+        args.output_streetview,
+        args.output_greenview_index,
         args.segment,
-        API_KEY,
     )
     create_point_feature_ogr(
         args.output_greenview_shapefile,
-        read_gvi_data(args.output_greenview),
+        read_gvi_data(args.output_greenview_index),
         'greenView'
     )
