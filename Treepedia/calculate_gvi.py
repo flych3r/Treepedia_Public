@@ -26,10 +26,44 @@ import numpy as np
 import requests
 from PIL import Image
 from skimage.filters import threshold_otsu
+from skimage.segmentation import felzenszwalb
 from tqdm.auto import tqdm
 
 
-def vegetation_classification(image: np.array) -> float:
+def segment_image(
+    image: np.array, scale: int = 50, sigma: float = 0.5, min_size: int = 20
+) -> np.array:
+    """
+    Segments the image and calculates the mean pixel values for each segment
+
+    Parameters
+    ----------
+    image : np.array
+        image to be segmented
+    scale : int, optional
+        Higher means larger clusters, by default 1
+    sigma : float, optional
+        Width (standard deviation) of Gaussian kernel
+        used in preprocessing, by default 0.8
+    min_size : int, optional
+        Minimum component size, by default 20
+
+    Returns
+    -------
+    np.array
+        _description_
+    """
+    image_semgented = image.copy()
+    segments_fz = felzenszwalb(
+        image_semgented, scale=scale, sigma=sigma, min_size=min_size
+    )
+    for seg in np.unique(segments_fz):
+        mask = segments_fz == seg
+        image_semgented[mask] = image_semgented[mask].mean(axis=0)
+    return image_semgented
+
+
+def vegetation_classification(image: np.array, segment: bool = True) -> float:
     """
     This function is used to classify the green vegetation from GSV image,
     This is based on object based and otsu automatically thresholding method
@@ -39,6 +73,8 @@ def vegetation_classification(image: np.array) -> float:
     ----------
     image : np.array
         the numpy array image
+    segment: bool, optional
+        if the image will be segmented before calculating gvi, by default True
 
     Returns
     -------
@@ -48,6 +84,8 @@ def vegetation_classification(image: np.array) -> float:
     By Xiaojiang Li
     """
     img = image / 255.0
+    if segment:
+        img = segment_image(img)
 
     red = img[:, :, 0]
     green = img[:, :, 1]
