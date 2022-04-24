@@ -8,6 +8,7 @@ First version July 21 2017
 
 import json
 import os
+from math import ceil
 from pathlib import Path
 
 import requests
@@ -16,7 +17,7 @@ from tqdm.auto import tqdm
 
 
 def pano_metadata_collector(
-    input_shapefile: Path, output_metadata: Path, api_key: str, num_sites: int
+    input_shapefile: Path, output_metadata: Path, num_sites: int, api_key: str
 ):
     """
     This function is used to call the Google API url to collect the metadata of
@@ -29,10 +30,10 @@ def pano_metadata_collector(
         the shapefile of the create sample sites
     output_metadata: Path
         the output folder for the metrics
-    api_key: str
-        Google Street View API Key
     num_sites: int
         the number of sites processed every time
+    api_key: str
+        Google Street View API Key
     """
     output_metadata.mkdir(exist_ok=True)
 
@@ -51,7 +52,8 @@ def pano_metadata_collector(
     feature = layer.GetNextFeature()
     num_features = layer.GetFeatureCount()
     num_sites = min(num_sites, num_features)
-    batch = num_features // num_sites
+    batch = ceil(num_features / num_sites)
+    unique_pano_ids = set()
 
     for b in tqdm(range(batch), desc='fetching gsv metadata'):
         # for each batch process num GSV site
@@ -91,20 +93,24 @@ def pano_metadata_collector(
                 # in case there is not panorama in the site, therefore, continue
                 if metadata_json['status'] != 'OK':
                     continue
-                else:
-                    # get the meta data of the panorama
-                    pano_date = metadata_json['date']
-                    pano_id = metadata_json['pano_id']
-                    pano_lat = metadata_json['location']['lat']
-                    pano_lng = metadata_json['location']['lng']
 
-                    json_line = {
-                        'panoID': pano_id,
-                        'panoDate': pano_date,
-                        'longitude': pano_lng,
-                        'latitude': pano_lat
-                    }
-                    pano_metadata.write(f'{json.dumps(json_line)}\n')
+                # get the meta data of the panorama
+                pano_date = metadata_json['date']
+                pano_id = metadata_json['pano_id']
+                pano_lat = metadata_json['location']['lat']
+                pano_lng = metadata_json['location']['lng']
+
+                if pano_id in unique_pano_ids:
+                    continue
+
+                unique_pano_ids.add(pano_id)
+                json_line = {
+                    'panoID': pano_id,
+                    'panoDate': pano_date,
+                    'longitude': pano_lng,
+                    'latitude': pano_lat
+                }
+                pano_metadata.write(f'{json.dumps(json_line)}\n')
 
 
 if __name__ == '__main__':
@@ -122,5 +128,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     pano_metadata_collector(
-        args.input_shapefile, args.output_metadata, API_KEY, args.num
+        args.input_shapefile, args.output_metadata, args.num, API_KEY
     )

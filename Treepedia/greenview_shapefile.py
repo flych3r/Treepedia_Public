@@ -27,22 +27,13 @@ def read_gvi_data(input_gvi_data: Path) -> list:
     list
         list of dictionary with gvi data
     """
-    unique_pano_ids = set()
     gvi_data = []
 
     for gvi_file in input_gvi_data.glob('*.jsonl'):
         with gvi_file.open('r') as f:
             lines = f.readlines()
 
-        for line in lines:
-            data = json.loads(line)
-
-            pano_id = data['panoID']
-
-            # remove the duplicated panorama id
-            if pano_id not in unique_pano_ids:
-                gvi_data.append(data)
-                unique_pano_ids.add(pano_id)
+        gvi_data.extend(map(json.loads, lines))
 
     return gvi_data
 

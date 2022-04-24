@@ -30,6 +30,11 @@ if __name__ == '__main__':
         type=int,
         default=3
     )
+    parser.add_argument(
+        '--segment',
+        type=bool,
+        default=True
+    )
 
     args = parser.parse_args()
 
@@ -39,14 +44,15 @@ if __name__ == '__main__':
         args.min_dist
     )
     pano_metadata_collector(
-        args.output_clean_shapefile, args.output_metadata, API_KEY, args.num
+        args.output_clean_shapefile, args.output_metadata, args.num, API_KEY
     )
     green_view_computing(
         args.output_metadata,
         args.output_greenview,
         args.greenmonth,
+        args.num_images,
+        args.segment,
         API_KEY,
-        args.num_images
     )
     create_point_feature_ogr(
         args.output_greenview_shapefile,

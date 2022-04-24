@@ -110,6 +110,11 @@ def vegetation_classification(image: np.array, segment: bool = True) -> float:
 
     threshold = threshold_otsu(green_pixels)
 
+    if threshold > 0.1:
+        threshold = 0.1
+    elif threshold < 0.05:
+        threshold = 0.05
+
     green_mask = green_pixels > threshold
     green_shadow_mask = green_pixels > 0.05
     green_img = green_img_thre * green_mask + green_shadow_mask * green_img_shadow
@@ -125,8 +130,9 @@ def green_view_computing(
     input_metadata: Path,
     output_greenview: Path,
     greenmonths: list,
+    num_gsv_imgs: int,
+    segment: bool,
     api_key: str,
-    num_gsv_imgs: int
 ):
     """
     This function is used to download the GSV from the information provide
@@ -141,10 +147,12 @@ def green_view_computing(
     greenmonths : list
         a list of the green season,
         for example in Boston, greenmonth = ['05','06','07','08','09']
-    api_key : str
-        the Google Street View API key
     num_gsv_imgs : int
         the number of images to view at each point
+    segment: bool, optional
+        if the image will be segmented before calculating gvi
+    api_key : str
+        the Google Street View API key
     """
     fov = 360 // num_gsv_imgs
     pitch = 0
@@ -160,7 +168,8 @@ def green_view_computing(
         return
     else:
         metadata_files = input_metadata.glob('*.jsonl')
-        for meta_file in tqdm(metadata_files, desc='processing gsv images'):
+
+        for meta_file in tqdm(sorted(metadata_files), desc='processing gsv images'):
             with meta_file.open('r') as f:
                 lines = f.readlines()
 
@@ -230,7 +239,9 @@ def green_view_computing(
                             images.append(img_array)
 
                     # calculate the green view index by averaging percents from images
-                    green_view_index = np.mean([*map(vegetation_classification, images)])
+                    green_view_index = np.mean([
+                        *map(lambda img: vegetation_classification(img, segment), images)
+                    ])
                     # write the result and the pano info to the result txt file
                     json_line = {
                         'panoID': pano_id,
@@ -258,6 +269,11 @@ if __name__ == '__main__':
         type=int,
         default=3
     )
+    parser.add_argument(
+        '--segment',
+        type=bool,
+        default=True
+    )
 
     args = parser.parse_args()
 
@@ -269,6 +285,7 @@ if __name__ == '__main__':
         args.input_metadata,
         args.output_greenview,
         args.greenmonth,
+        args.num_images,
+        args.segment,
         API_KEY,
-        args.num_images
     )

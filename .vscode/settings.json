@@ -1,9 +1,9 @@
 {
-    "python.pythonPath": "",
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
     "cSpell.words": [
         "Defn",
+        "felzenszwalb",
         "fiona",
         "jsonl",
         "osgeo",

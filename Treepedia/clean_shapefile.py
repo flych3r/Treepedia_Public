@@ -74,7 +74,6 @@ def create_points(input_shapefile: Path, output_shapefile: Path, min_dist: int):
             schema=source.schema,
         ) as dest,
     ):
-
         for feat in source:
             try:
                 i = feat['properties']['highway']  # for the OSM street data
