@@ -83,7 +83,9 @@ def create_point_feature_ogr(
     out_layer.CreateField(pano_date_field)
     out_layer.CreateField(green_view_field)
 
-    for idx, data in tqdm(enumerate(gvi_data), desc='creating greenview shapefile'):
+    for idx, data in tqdm(
+        enumerate(gvi_data), total=len(gvi_data), desc='creating greenview shapefile'
+    ):
         # create point geometry
         point = ogr.Geometry(ogr.wkbPoint)
 

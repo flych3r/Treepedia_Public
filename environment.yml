@@ -14,14 +14,15 @@ dependencies:
   - numpy
   - isort
   - autoflake
+  - pre-commit
   - black
   - flake8
   - tqdm
   - folium
   - geopandas
   - jupyterlab
-  - scikit-learn
+  - pre-commit
   - scikit-image
   - osmnx
   - seaborn
-prefix: ~/anaconda3/envs/treepedia
+  - aiohttp

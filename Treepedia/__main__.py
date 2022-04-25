@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('output_greenview_index', type=Path)
     parser.add_argument('output_greenview_shapefile', type=Path)
     parser.add_argument('--min_dist', type=int, default=20)
-    parser.add_argument('--num', type=int, default=500)
+    parser.add_argument('--num', type=int, default=1000)
     parser.add_argument(
         '--greenmonth',
         type=list,

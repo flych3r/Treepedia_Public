@@ -175,7 +175,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('input_shapefile', type=Path)
     parser.add_argument('output_metadata', type=Path)
-    parser.add_argument('--num', type=int, default=500)
+    parser.add_argument('--num', type=int, default=1000)
 
     API_KEY = os.getenv('MAPS_KEY')
     SIGNATURE_SECRET = os.getenv('SIGNATURE_SECRET')
